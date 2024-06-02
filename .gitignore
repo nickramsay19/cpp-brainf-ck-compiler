@@ -1,0 +1,7 @@
+build/
+bin/
+
+input.bf
+output.ll
+output.o
+output
