@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -I src -DLLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING $(shell llvm-config --cxxflags --ldflags --libs all --system-libs)
+CXXFLAGS := -DLLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING $(shell llvm-config --cxxflags --ldflags --libs all --system-libs) -fexceptions
 LD := ld
 
 BIN_DIR := bin

@@ -40,7 +40,7 @@
 int write_llvm_ir(const llvm::Module& mod, std::string file_name) {
     std::error_code EC;
     //raw_fd_ostream OS("output.ll", EC);  // Simply remove the flag
-    raw_fd_ostream OS(file_name, EC);  // Simply remove the flag
+    llvm::raw_fd_ostream OS(file_name, EC);  // Simply remove the flag
 
     if (EC) {
         std::cerr << "Error opening file for output: " << EC.message() << '\n';
@@ -66,52 +66,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    Parser parser(file);    
-    const Program program = parser.parse();
+    Parser parser (std::move(file));    
+    std::unique_ptr<Program> program = parser.parse();
 
-
-    /*const Program program(
-        std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<IncStmt>()), std::move(std::make_unique<FullStmtList>(
-            std::move(std::make_unique<PrintStmt>()), std::move(std::make_unique<EmptyStmtList>())))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
-        )
-    );*/
+    std::cout << static_cast<std::string>(*program) << '\n';
 
     CodeGenVisitor visitor;
-    program.accept(visitor);
+    program->accept(visitor);
 
     const llvm::Module& mod = visitor.get_module();
     llvm::verifyModule(mod, &llvm::errs());

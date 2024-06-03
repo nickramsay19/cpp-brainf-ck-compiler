@@ -1,5 +1,7 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <sstream>
 #include <utility>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
@@ -12,20 +14,76 @@ class Stmt;
 class AST {
 public:
     virtual void accept(CodeGenVisitor& visitor) const {}
+
+    virtual operator std::string() const = 0;
+
+    //friend std::ostream& operator<<(std::ostream& os, const std::unique_ptr<AST> ast);
 };
 
-struct Program : public AST {
-    explicit Program(std::unique_ptr<StmtList> stmt_list) : stmt_list{std::move(stmt_list)} {}
+//std::ostream& operator<<(std::ostream& os, const std::unique_ptr<AST> ast);
+
+// Stmt
+struct Stmt : public AST {
+    virtual ~Stmt() = default;
+};
+
+struct LeftStmt : public Stmt {
+    void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override {
+        return "<";
+    }
+};
+
+struct RightStmt : public Stmt {
+    void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override;
+};
+
+struct IncStmt : public Stmt {
+    void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override {
+        return "+";
+    }
+};
+
+struct DecStmt : public Stmt {
+    void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override {
+        return "-";
+    }
+};
+
+struct ReadStmt : public Stmt {
+    void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override {
+        return ",";
+    }
+};
+
+struct PrintStmt : public Stmt {
+    void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override {
+        return ".";
+    }
+};
+
+struct LoopStmt : public Stmt {
+    LoopStmt(std::unique_ptr<StmtList> stmt_list) : stmt_list{std::move(stmt_list)} {}
 
     void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override;
 
     std::unique_ptr<StmtList> stmt_list;
 };
 
-// StmtList
 struct StmtList : public AST {
-    //virtual void accept(CodeGenVisitor& visitor) const = default;
-    //virtual ~StmtList() {}
     virtual ~StmtList() = default;
 };
 
@@ -36,47 +94,30 @@ struct FullStmtList : public StmtList {
 
     void accept(CodeGenVisitor& visitor) const override;
 
+    operator std::string() const override;
+
     std::unique_ptr<Stmt> stmt;
     std::unique_ptr<StmtList> next;
 };
 
 struct EmptyStmtList : public StmtList {
     void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override {
+        return "EmptyStmtList";
+    }
 };
 
-// Stmt
-struct Stmt : public AST {
-    virtual ~Stmt() = default;
-};
-
-struct LeftStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
-};
-
-struct RightStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
-};
-
-struct IncStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
-};
-
-/*struct DecStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
-};
-
-struct ReadStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
-};*/
-
-struct PrintStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
-};
-
-/*struct LoopStmt : public Stmt {
-    LoopStmt(std::unique_ptr<StmtList> stmt_list) : stmt_list{std::move(stmt_list)} {}
+struct Program : public AST {
+    explicit Program(std::unique_ptr<StmtList> stmt_list) : stmt_list{std::move(stmt_list)} {}
 
     void accept(CodeGenVisitor& visitor) const override;
+
+    operator std::string() const override {
+        std::stringstream ss;
+        ss << "Program(" << static_cast<std::string>(*stmt_list) << ")";
+        return ss.str();
+    }
 
     std::unique_ptr<StmtList> stmt_list;
-};*/
+};

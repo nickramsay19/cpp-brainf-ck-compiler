@@ -15,7 +15,7 @@
 
 class CodeGenVisitor {
 public:
-    CodeGenVisitor() : module_{std::make_unique<Module>("bf_module", context)}, builder{context} {
+    CodeGenVisitor() : module_{std::make_unique<llvm::Module>("bf_module", context)}, builder{context} {
         using namespace llvm;
         i8 = Type::getInt8Ty(context);
         i32 = Type::getInt32Ty(context);
@@ -65,17 +65,18 @@ public:
     void visit(const IncStmt& stmt) {
         using namespace llvm;
         // Increment the byte at the pointer
-        Value *val = builder.CreateLoad(i8, data_ptr, "incLoadTmp");
-        val = builder.CreateAdd(val, ConstantInt::get(i8, 1), "inc");
-        builder.CreateStore(val, data_ptr);
+        Value* inc_load = builder.CreateLoad(i8, data_ptr, "incLoadTmp");
+        Value* inc = builder.CreateAdd(inc_load, ConstantInt::get(i8, 1), "inc");
+        builder.CreateStore(inc, data_ptr);
     }
 
-    /*void visit(DecStmt& stmt) {
-        // Decrement the byte at the pointer
-        Value *val = builder.CreateLoad(Type::getInt8Ty(context), data_ptr, "loadTmp");
-        val = builder.CreateSub(val, ConstantInt::get(Type::getInt8Ty(context), 1), "decrement");
-        builder.CreateStore(val, data_ptr);
-    }*/
+    void visit(const DecStmt& stmt) {
+        using namespace llvm;
+        // Increment the byte at the pointer
+        Value* dec_load = builder.CreateLoad(i8, data_ptr, "decLoadTmp");
+        Value* dec = builder.CreateAdd(dec_load, ConstantInt::get(i8, -1), "dec");
+        builder.CreateStore(dec, data_ptr);
+    }
 
     void visit(const PrintStmt& stmt) {
         using namespace llvm;
@@ -85,6 +86,10 @@ public:
         Value* extended_val = builder.CreateZExt(val, i8, "extendedPrintLoadTmp");
 
         builder.CreateCall(putchar_func_callee, {extended_val});
+    }
+
+    void visit(const LoopStmt& stmt) {
+        using namespace llvm;
     }
 
 protected:
