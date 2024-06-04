@@ -10,9 +10,9 @@
 
 class Parser {
 public:
-    Parser(std::fstream file) {
-        file_.swap(file);
-    }
+    Parser(std::istream& file) : file_{file} {}
+        //file_.swap(file);
+    //}
 
     std::unique_ptr<Program> parse() {
         next();
@@ -124,7 +124,7 @@ protected:
         return std::unique_ptr<Stmt> (new LoopStmt(std::move(stmt_list)));
     }
 
-    std::fstream file_;
+    std::istream& file_;
     char c_;
 };
 
