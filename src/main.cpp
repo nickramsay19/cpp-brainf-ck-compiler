@@ -5,6 +5,7 @@
 #include <memory>
 #include <utility>
 #include <stdexcept>
+#include <variant>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -24,7 +25,6 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/FileSystem.h>
-//#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
@@ -35,9 +35,12 @@
 #include <llvm/InitializePasses.h>
 #include <llvm/PassRegistry.h>
 
-//#include <llvm/Support/TargetRegistry.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/TargetParser/Host.h>
+
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/Object/ObjectFile.h>
+#include <llvm/Support/CodeGen.h>
 
 #include "argparse/argparse.hpp"
 
@@ -46,72 +49,16 @@
 #include "parser.hpp"
 #include "ast.hpp"
 #include "emitter.hpp"
+#include "ostream_to_llvm_raw_pwrite_stream_adaptor.hpp"
 
-void emitObjectFile(llvm::Module& mod) {
-    // Initialize the target registry etc.
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
-
-    auto TargetTriple = llvm::sys::getDefaultTargetTriple();
-    mod.setTargetTriple(TargetTriple);
-
-    std::string Error;
-    auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
-
-    // Print an error and exit if we couldn't find the requested target.
-    // This generally occurs if we've forgotten to initialise the
-    // TargetRegistry or we have a bogus target triple.
-    if (!Target) {
-        llvm::errs() << Error;
-        return;
-    }
-
-    auto CPU = "generic";
-    auto Features = "";
-
-    llvm::TargetOptions opt;
-    //auto RM = llvm::Optional<llvm::Reloc::Model>();
-    std::optional<llvm::Reloc::Model> RM;
-
-    auto TheTargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
-
-    mod.setDataLayout(TheTargetMachine->createDataLayout());
-
-    std::error_code EC;
-    llvm::raw_fd_ostream dest("output.o", EC, llvm::sys::fs::OF_None);
-
-    if (EC) {
-        llvm::errs() << "Could not open file: " << EC.message();
-        return;
-    }
-
-    llvm::legacy::PassManager pass;
-    auto FileType = llvm::CGFT_ObjectFile;
-
-    if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
-        llvm::errs() << "TheTargetMachine can't emit a file of this type";
-        return;
-    }
-
-    pass.run(mod);
-    dest.flush();
-}
-
-int writeLLVMIR(const llvm::Module& mod, std::string file_name) {
-    std::error_code EC;
-    //raw_fd_ostream OS("output.ll", EC);  // Simply remove the flag
-    llvm::raw_fd_ostream OS(file_name, EC);  // Simply remove the flag
-
-    if (EC) {
-        std::cerr << "Error opening file for output: " << EC.message() << '\n';
+template <typename T> requires std::is_same_v<T, std::istream> || std::is_same_v<T, std::ostream>
+int open_fstream_overwrite_ptr(const std::string& file_name, std::unique_ptr<std::fstream>& managed, T** ptr_to_unmanaged, const std::ios_base::openmode& mode) {
+    managed.reset(new std::fstream (file_name, mode));
+    if (!managed->is_open()) {
         return 1;
     }
 
-    mod.print(OS, nullptr);
-    OS.flush(); // Ensure all content is written to the file
+    *ptr_to_unmanaged = managed.get();
 
     return 0;
 }
@@ -121,25 +68,29 @@ int main(int argc, char* argv[]) {
     // parse cli options
     argparse::ArgumentParser arg_parser("bfc");
     arg_parser.add_argument("-o", "--output")
-        .help("output executable file name")
+        .help("Output executable file name")
         .default_value(std::string("a.out"));
 
     arg_parser.add_group("Stage Selection Options");
     auto& group = arg_parser.add_mutually_exclusive_group();
-    group.add_argument("-S")
-        .help("Run the previous stages as well as LLVM generation and optimization stages and target-specific code generation, producing an assembly file.")
+    group.add_argument("-S", "--asm")
+        .help("LLVM generation and optimization stages and target-specific code generation, producing an assembly file")
         .flag();
-    group.add_argument("-c")
-        .help("Run all of the above, plus the assembler, generating a target \".o\" object file.")
+    group.add_argument("-c", "--compile")
+        .help("The above, plus the assembler, generating a target \".o\" object file.")
         .flag();
+    group.add_argument("-e", "--exe")
+        .help("All the above, plus linking combine the results into an executable")
+        .flag()
+        .default_value(true);
 
     arg_parser.add_group("Code Generation Options");
-    arg_parser.add_hidden_alias_for(arg_parser.add_argument("-l", "--emit-llvm")
-        .help("emit LLVM IR")
+    arg_parser.add_hidden_alias_for(arg_parser.add_argument("-l", "--llvm-ir", "--emit-llvm")
+        .help("Emit LLVM IR")
         .flag(), "-emit-llvm");
 
     arg_parser.add_argument("input")
-        .help("input brainfuck file name")
+        .help("Input file name")
         .default_value(std::string("-"));
 
     try {
@@ -151,23 +102,20 @@ int main(int argc, char* argv[]) {
         std::exit(1);
     }
 
+    // input file
+    const std::string input_file_name = arg_parser.get<std::string>("input");
+
     // by default, read from stdin
+    // keep an unmanaged pointer to it, since it cannot be freed
     std::istream* input_ptr = &std::cin;
 
     // allocate a fstream, incase we end up using one
-    std::string file_name = arg_parser.get<std::string>("input");
-
-    std::unique_ptr<std::fstream> file_input_ptr;
-
-    // check if using a file
-    if (file_name != "-") {
-        file_input_ptr.reset(new std::fstream (file_name, std::ios::in));
-        if (!file_input_ptr->is_open()) {
-            std::cerr << "Failed to open file \"" << file_name << "\"\n";
-            return 1;
-        }
-
-        input_ptr = file_input_ptr.get();
+    // place it in a unque_ptr in the current (main) scope, 
+    // thus, unlike std::cin, it must and will be deleted
+    std::unique_ptr<std::fstream> managed_input_ptr;
+    if (input_file_name != "-" && open_fstream_overwrite_ptr(input_file_name, managed_input_ptr, &input_ptr, std::ios::in)) {
+        std::cerr << "Failed to open file \"" << input_file_name << "\"\n";
+        return 1;
     }
 
     // parse input code
@@ -176,20 +124,83 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<Program> program = parser.parse();
     std::cout << static_cast<std::string>(*program) << '\n';
 
-    // generate llvm
+    // generate llvm module
     CodeGenVisitor visitor;
     program->accept(visitor);
-    const llvm::Module& mod = visitor.get_module();
+    llvm::Module& mod = visitor.get_module();
 
     // verify module
     if (llvm::verifyModule(mod, &llvm::errs())) {
-        throw std::runtime_error("Generated module has errors");
+        std::cerr << "Generated module has errors";
+        return 1;
+    }
+
+    // open output file
+    std::string output_file_name = arg_parser.get<std::string>("output");
+    std::ostream* output_ptr = &std::cout;
+    std::unique_ptr<std::fstream> managed_output_ptr;
+    if (output_file_name != "-" && open_fstream_overwrite_ptr(output_file_name, managed_output_ptr, &output_ptr, std::ios::out)) {
+        std::cerr << "Failed to open file \"" << output_file_name << " for writing\"\n";
+        return 1;
     }
 
     // generate final output
     if (arg_parser.get<bool>("--emit-llvm")) {
-        // write LLVM IR
-        writeLLVMIR(mod, std::string {"output.ll"});
+        OStreamToLLVMOStreamAdaptor llvm_output (output_ptr);
+        if (arg_parser.get<bool>("--asm")) {
+            mod.print(llvm_output, nullptr); // write LLVM IR
+        } else {
+            llvm::WriteBitcodeToFile(mod, llvm_output); // llvm bitcode format obj files
+        }     
+
+        llvm_output.flush();
+    } else {
+
+        OStreamToLLVMRawPWriteStreamAdaptor bin_output (output_ptr);
+
+        // init target and target machine
+        llvm::InitializeAllTargetInfos();
+        llvm::InitializeAllTargets();
+        llvm::InitializeAllTargetMCs();
+        llvm::InitializeAllAsmParsers();
+        llvm::InitializeAllAsmPrinters();
+
+        std::string error;
+        auto target_triple = llvm::sys::getDefaultTargetTriple();
+        const auto* target = llvm::TargetRegistry::lookupTarget(target_triple, error);
+
+        llvm::TargetOptions opt;
+        //auto reloc_model = llvm::Optional<llvm::Reloc::Model>();
+        //llvm::cl::Optional<llvm::Reloc::Model> reloc_model;
+        std::optional<llvm::Reloc::Model> reloc_model;
+        auto target_machine = target->createTargetMachine(target_triple, "generic", "", opt, reloc_model);
+
+        // set up module
+        mod.setDataLayout(target_machine->createDataLayout());
+        mod.setTargetTriple(target_triple);
+
+        // optimize
+        //auto file_type = llvm::TargetMachine::CGFT_ObjectFile;
+        
+        llvm::legacy::PassManager pass;
+        //pass.add(llvm::createFunctionInliningPass());
+        //pass.add(llvm::createConstantPropagationPass());
+
+        if (arg_parser.get<bool>("--asm")) {
+            //if (target_machine->addPassesToEmitFile(pass, llvm_output, nullptr, file_type)) {
+            if (target_machine->addPassesToEmitFile(pass, bin_output, nullptr, llvm::CodeGenFileType::CGFT_AssemblyFile)) {
+                llvm::errs() << "TargetMachine can't emit a file of this type";
+                return 1;
+            }
+
+            pass.run(mod);
+        } else if (arg_parser.get<bool>("--compile")) {
+
+        } else {
+            
+        }
+
+        bin_output.flush();
     }
 
     return 0;

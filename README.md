@@ -7,31 +7,13 @@ Since Brainfuck syntax comprises exclusively single character tokens, no *scanne
 
 ## Usage
 ```
-bfc -o main input.bf
+Usage: bfc [--help] [--version] [--output VAR] input
 
-# will default to 'a.out' if -o not given
-bfc input.bf
+Positional arguments:
+  input          input brainfuck file name [nargs=0..1] [default: "-"]
 
-# write output to stdout
-bfc -o - input.bf
+Optional arguments:
+  -h, --help     shows help message and exits 
+  -v, --version  prints version information and exits 
+  -o, --output   output executable file name [nargs=0..1] [default: "a.out"]
 ```
-
-### Input from `stdin`
-```
-cat input.bf | bfc
-```
-
-### Output formats
-#### Emit LLVM IR
-```
-bfc -l input.bf
-```
-
-#### Emit LLVM bitcode
-```
-bfc -b input.bf
-
-# can do both 
-bf -lb input.bf
-```
-

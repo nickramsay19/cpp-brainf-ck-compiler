@@ -43,7 +43,10 @@ public:
     }
 
     const llvm::Module& get_module() const {
-        //return module_.get();
+        return *module_;
+    }
+
+    llvm::Module& get_module() {
         return *module_;
     }
 

@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -DLLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING $(shell llvm-config --cxxflags --ldflags --libs all --system-libs) -fexceptions
+CXXFLAGS := $(shell llvm-config --cxxflags --ldflags --libs all --system-libs) -DLLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING -fexceptions -I external/argparse/include/ -std=c++20
 LD := ld
 
 BIN_DIR := bin
