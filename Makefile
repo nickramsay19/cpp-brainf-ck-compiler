@@ -6,7 +6,7 @@ BIN_DIR := bin
 OBJ_DIR := build
 SRC_DIR := src
 
-BIN := $(BIN_DIR)/main
+BIN := $(BIN_DIR)/bfc
 
 all: $(BIN_DIR)/main
 

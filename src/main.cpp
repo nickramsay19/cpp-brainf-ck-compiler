@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
         .help("The above, plus the assembler, generating a target \".o\" object file.")
         .flag();
     group.add_argument("-e", "--exe")
-        .help("All the above, plus linking combine the results into an executable")
+        .help("the above, plus linking to produce an executable")
         .flag()
         .default_value(true);
 
