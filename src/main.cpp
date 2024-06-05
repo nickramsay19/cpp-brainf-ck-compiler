@@ -19,7 +19,6 @@
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/Analysis/Passes.h>
 
-//#include <llvm/ADT/Optional.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LegacyPassManager.h>
@@ -146,7 +145,7 @@ int main(int argc, char* argv[]) {
 
     // generate final output
     if (arg_parser.get<bool>("--emit-llvm")) {
-        OStreamToLLVMOStreamAdaptor llvm_output (output_ptr);
+        OStreamToLLVMRawPWriteStreamAdaptor llvm_output (output_ptr);
         if (arg_parser.get<bool>("--asm")) {
             mod.print(llvm_output, nullptr); // write LLVM IR
         } else {
@@ -179,20 +178,16 @@ int main(int argc, char* argv[]) {
         mod.setDataLayout(target_machine->createDataLayout());
         mod.setTargetTriple(target_triple);
 
-        // optimize
-        //auto file_type = llvm::TargetMachine::CGFT_ObjectFile;
-        
+        // optimize 
         llvm::legacy::PassManager pass;
         //pass.add(llvm::createFunctionInliningPass());
         //pass.add(llvm::createConstantPropagationPass());
 
         if (arg_parser.get<bool>("--asm")) {
-            //if (target_machine->addPassesToEmitFile(pass, llvm_output, nullptr, file_type)) {
             if (target_machine->addPassesToEmitFile(pass, bin_output, nullptr, llvm::CodeGenFileType::CGFT_AssemblyFile)) {
                 llvm::errs() << "TargetMachine can't emit a file of this type";
                 return 1;
             }
-
             pass.run(mod);
         } else if (arg_parser.get<bool>("--compile")) {
 
