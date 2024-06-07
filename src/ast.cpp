@@ -5,15 +5,6 @@
 #include <llvm/IR/Module.h>
 #include "generator.hpp"
 
-/*std::ostream& operator<<(std::ostream& os, const std::unique_ptr<AST> ast) {
-    if (ast) {
-        os << static_cast<std::string>(*ast);
-    } else {
-        os << "nullptr";
-    }
-    return os;
-}*/
-
 void Program::accept(Generator& generator) const {
     generator.visit(this);
 }
