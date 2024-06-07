@@ -47,7 +47,7 @@
 
 #include "parser.hpp"
 #include "ast.hpp"
-#include "emitter.hpp"
+#include "generator.hpp"
 #include "ostream_to_llvm_raw_pwrite_stream_adaptor.hpp"
 
 template <typename T> requires std::is_same_v<T, std::istream> || std::is_same_v<T, std::ostream>
@@ -123,9 +123,9 @@ int main(int argc, char* argv[]) {
     //std::cout << static_cast<std::string>(*program) << '\n';
 
     // generate llvm module
-    CodeGenVisitor visitor;
-    program->accept(visitor);
-    llvm::Module& mod = visitor.get_module();
+    Generator generator;
+    program->accept(generator);
+    llvm::Module& mod = generator.get_module();
 
     // verify module
     if (llvm::verifyModule(mod, &llvm::errs())) {

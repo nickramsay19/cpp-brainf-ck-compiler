@@ -7,13 +7,13 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
-class CodeGenVisitor;
+class Generator;
 class StmtList;
 class Stmt;
 
 class AST {
 public:
-    virtual void accept(CodeGenVisitor& visitor) const {}
+    virtual void accept(Generator& visitor) const {}
 
     virtual operator std::string() const = 0;
 
@@ -28,7 +28,7 @@ struct Stmt : public AST {
 };
 
 struct LeftStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override {
         return "<";
@@ -36,13 +36,13 @@ struct LeftStmt : public Stmt {
 };
 
 struct RightStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override;
 };
 
 struct IncStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override {
         return "+";
@@ -50,7 +50,7 @@ struct IncStmt : public Stmt {
 };
 
 struct DecStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override {
         return "-";
@@ -58,7 +58,7 @@ struct DecStmt : public Stmt {
 };
 
 struct ReadStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override {
         return ",";
@@ -66,7 +66,7 @@ struct ReadStmt : public Stmt {
 };
 
 struct PrintStmt : public Stmt {
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override {
         return ".";
@@ -76,7 +76,7 @@ struct PrintStmt : public Stmt {
 struct LoopStmt : public Stmt {
     LoopStmt(std::unique_ptr<StmtList> stmt_list) : stmt_list{std::move(stmt_list)} {}
 
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override;
 
@@ -92,7 +92,7 @@ struct FullStmtList : public StmtList {
         stmt{std::move(stmt)},
         next{std::move(next)} {}
 
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override;
 
@@ -101,7 +101,7 @@ struct FullStmtList : public StmtList {
 };
 
 struct EmptyStmtList : public StmtList {
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override {
         return "EmptyStmtList";
@@ -111,7 +111,7 @@ struct EmptyStmtList : public StmtList {
 struct Program : public AST {
     explicit Program(std::unique_ptr<StmtList> stmt_list) : stmt_list{std::move(stmt_list)} {}
 
-    void accept(CodeGenVisitor& visitor) const override;
+    void accept(Generator& visitor) const override;
 
     operator std::string() const override {
         std::stringstream ss;

@@ -3,7 +3,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
-#include "emitter.hpp"
+#include "generator.hpp"
 
 /*std::ostream& operator<<(std::ostream& os, const std::unique_ptr<AST> ast) {
     if (ast) {
@@ -14,13 +14,13 @@
     return os;
 }*/
 
-void Program::accept(CodeGenVisitor& visitor) const {
-    visitor.visit(this);
+void Program::accept(Generator& generator) const {
+    generator.visit(this);
 }
 
-void FullStmtList::accept(CodeGenVisitor& visitor) const {
-    stmt->accept(visitor);
-    next->accept(visitor); // recurse
+void FullStmtList::accept(Generator& generator) const {
+    stmt->accept(generator);
+    next->accept(generator); // recurse
 }
 
 FullStmtList::operator std::string() const {
@@ -29,34 +29,34 @@ FullStmtList::operator std::string() const {
     return ss.str();
 }
 
-void EmptyStmtList::accept(CodeGenVisitor& visitor) const {}
+void EmptyStmtList::accept(Generator& generator) const {}
 
-void LeftStmt::accept(CodeGenVisitor& visitor) const {
-    visitor.visit(*this);
+void LeftStmt::accept(Generator& generator) const {
+    generator.visit(*this);
 }
 
-void RightStmt::accept(CodeGenVisitor& visitor) const {
-    visitor.visit(*this);
+void RightStmt::accept(Generator& generator) const {
+    generator.visit(*this);
 }
 
 RightStmt::operator std::string() const {
     return ">";
 }
 
-void IncStmt::accept(CodeGenVisitor& visitor) const {
-    visitor.visit(*this);
+void IncStmt::accept(Generator& generator) const {
+    generator.visit(*this);
 }
 
-void DecStmt::accept(CodeGenVisitor& visitor) const {
-    visitor.visit(*this);
+void DecStmt::accept(Generator& generator) const {
+    generator.visit(*this);
 }
 
-void PrintStmt::accept(CodeGenVisitor& visitor) const {
-    visitor.visit(*this);
+void PrintStmt::accept(Generator& generator) const {
+    generator.visit(*this);
 }
 
-void LoopStmt::accept(CodeGenVisitor& visitor) const {
-    visitor.visit(*this);
+void LoopStmt::accept(Generator& generator) const {
+    generator.visit(*this);
 }
 
 LoopStmt::operator std::string() const {
