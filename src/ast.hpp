@@ -30,9 +30,7 @@ struct Stmt : public AST {
 struct LeftStmt : public Stmt {
     void accept(Generator& visitor) const override;
 
-    operator std::string() const override {
-        return "<";
-    }
+    operator std::string() const override;
 };
 
 struct RightStmt : public Stmt {
@@ -44,33 +42,25 @@ struct RightStmt : public Stmt {
 struct IncStmt : public Stmt {
     void accept(Generator& visitor) const override;
 
-    operator std::string() const override {
-        return "+";
-    }
+    operator std::string() const override;
 };
 
 struct DecStmt : public Stmt {
     void accept(Generator& visitor) const override;
 
-    operator std::string() const override {
-        return "-";
-    }
+    operator std::string() const override;
 };
 
 struct ReadStmt : public Stmt {
     void accept(Generator& visitor) const override;
 
-    operator std::string() const override {
-        return ",";
-    }
+    operator std::string() const override;
 };
 
 struct PrintStmt : public Stmt {
     void accept(Generator& visitor) const override;
 
-    operator std::string() const override {
-        return ".";
-    }
+    operator std::string() const override;
 };
 
 struct LoopStmt : public Stmt {
@@ -103,9 +93,7 @@ struct FullStmtList : public StmtList {
 struct EmptyStmtList : public StmtList {
     void accept(Generator& visitor) const override;
 
-    operator std::string() const override {
-        return "EmptyStmtList";
-    }
+    operator std::string() const override;
 };
 
 struct Program : public AST {
@@ -113,11 +101,7 @@ struct Program : public AST {
 
     void accept(Generator& visitor) const override;
 
-    operator std::string() const override {
-        std::stringstream ss;
-        ss << "Program(" << static_cast<std::string>(*stmt_list) << ")";
-        return ss.str();
-    }
+    operator std::string() const override;
 
     std::unique_ptr<StmtList> stmt_list;
 };
