@@ -8,9 +8,9 @@ SRC_DIR := src
 
 BIN := $(BIN_DIR)/bfc
 
-all: $(BIN_DIR)/main
+all: $(BIN)
 
-$(BIN_DIR)/main: $(OBJ_DIR)/main.o $(OBJ_DIR)/ast.o
+$(BIN): $(OBJ_DIR)/main.o $(OBJ_DIR)/ast.o
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 

@@ -15,8 +15,7 @@
 }*/
 
 void Program::accept(CodeGenVisitor& visitor) const {
-    stmt_list->accept(visitor);
-    visitor.done(); // mark main method finished
+    visitor.visit(this);
 }
 
 void FullStmtList::accept(CodeGenVisitor& visitor) const {

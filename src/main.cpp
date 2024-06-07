@@ -94,8 +94,7 @@ int main(int argc, char* argv[]) {
 
     try {
         arg_parser.parse_args(argc, argv);
-    }
-    catch (const std::exception& err) {
+    } catch (const std::exception& err) {
         std::cerr << err.what() << std::endl;
         std::cerr << arg_parser;
         std::exit(1);
@@ -121,7 +120,7 @@ int main(int argc, char* argv[]) {
     Parser parser (*input_ptr); 
 
     std::unique_ptr<Program> program = parser.parse();
-    std::cout << static_cast<std::string>(*program) << '\n';
+    //std::cout << static_cast<std::string>(*program) << '\n';
 
     // generate llvm module
     CodeGenVisitor visitor;
