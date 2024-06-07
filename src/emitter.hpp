@@ -11,35 +11,70 @@
 #include <llvm/IR/Intrinsics.h>
 #include "ast.hpp"
 
-#define STACK_SIZE 255
-
 class CodeGenVisitor {
+protected:
+    static constexpr size_t STACK_SIZE = 255;
+
+    // unfortunately, these cannot be static, since they depend on context_
+    // type aliases
+    const llvm::IntegerType* I1_T_; // i1, or bool
+    const llvm::IntegerType* I8_T_; // i8
+    const llvm::IntegerType* I32_T_; // i32
+    const llvm::IntegerType* I64_T_; // i64
+
+    // int value aliases
+    const llvm::ConstantInt I8_V_1_; // 1
+    const llvm::ConstantInt I8_V_0_; // 0
+    const llvm::ConstantInt I8_V_N1_; // -1
+    //const llvm::ConstantInt I8_V_STACK_SIZE_;
+
 public:
-    CodeGenVisitor() : module_{std::make_unique<llvm::Module>("bf_module", context)}, builder{context} {
-        using namespace llvm;
-        i8 = Type::getInt8Ty(context);
-        i32 = Type::getInt32Ty(context);
-
-        putchar_func_callee = module_->getOrInsertFunction("putchar", llvm::FunctionType::get(i8, {i8}, false));
-
-        // Set up the entry function and initial block
-        main_func = llvm::Function::Create(
-            FunctionType::get(i32, false),
+    CodeGenVisitor() : 
+        context_{},
+        module_{std::make_unique<llvm::Module>("bf_module", context)}, 
+        builder_{context},
+        I1_T_{llvm::Type::getInt1Ty(context_)}, 
+        I8_T_{llvm::Type::getInt8Ty(context_},
+        I32_T_{llvm::Type::getInt32Ty(context_},
+        I64_T_{llvm::Type::getInt64Ty(context_)},
+        I8_V_1_{llvm::ConstantInt::get(I8_T_, 1)},
+        I8_V_0_{llvm::ConstantInt::get(I8_T_, 0)},
+        I8_V_N1_{llvm::ConstantInt::get(I8_T_, -1)},
+        //I8_V_STACK_SIZE_{llvm::ConstantInt::get(I8_T_, STACK_SIZE)}
+    {
+        // set up the main entry function and initial block
+        main_func_ = llvm::Function::Create(
+            llvm::FunctionType::get(I32_T_, false),
             llvm::Function::ExternalLinkage, "main", module_.get()
         );
 
-        entry = llvm::BasicBlock::Create(context, "entry", main_func);
-        builder.SetInsertPoint(entry);
+        entry_ = llvm::BasicBlock::Create(context_, "entry", main_func_);
+        builder_.SetInsertPoint(entry_);
+
+        // define the putchar function used for print
+        putchar_func_callee_ = module_->getOrInsertFunction("putchar", llvm::FunctionType::get(I8_T_, {I8_T_}, false));
 
         // allocate the brainfuck stack
-        data_ptr = builder.CreateAlloca(i8, ConstantInt::get(i8, STACK_SIZE), "stack");
+        const llvm::ConstantInt* stack_size_i64 = llvm::ConstantInt::get(I64_T_, STACK_SIZE);
+        data_ptr_ = builder.CreateAlloca(I8_T_, stack_size_i64, "stack");
 
         // memset stack to 0
-        Value* zero_i8 = llvm::ConstantInt::get(i8, 0);
-        Value* byte_count_i64 = llvm::ConstantInt::get(llvm::Type::getInt64Ty(context), STACK_SIZE);
-        Value* is_volatile_i1 = llvm::ConstantInt::get(llvm::Type::getInt1Ty(context), false);
-        FunctionCallee memset_func = module_->getOrInsertFunction("memset", llvm::FunctionType::get(i8, {i8->getPointerTo(), i8, llvm::Type::getInt64Ty(context), llvm::Type::getInt1Ty(context)}, false));
-        builder.CreateCall(memset_func, { data_ptr, zero_i8, byte_count_i64, is_volatile_i1 });
+        const llvm::Type* memset_func_t = llvm::FunctionType::get(I8_T_, {I8_T_->getPointerTo(), I8_T, I64_T_, I1_T}, false);
+        FunctionCallee memset_func = module_->getOrInsertFunction("memset", );
+        memset_stack_0();
+    }
+
+    // memset the stack to all zeroes
+    void memset_stack_0() {
+        // memset takes a i64 range
+        const llvm::Value* stack_size_i64 = llvm::ConstantInt::get(I64_T_, STACK_SIZE); 
+    
+        // memset takes a boolean (i1) is_volatile flag
+        const llvm::Value* i1_v_0 = llvm::ConstantInt::get(i1_t, false);
+        const llvm::Value* is_volatile_i1 = i1_v_0; // not volatile
+
+        builder.CreateCall(memset_func_, {data_ptr_, I8_V_0_, stack_size_i64, is_volatile_i1 });
+
     }
 
     const llvm::Module& get_module() const {
@@ -69,21 +104,20 @@ public:
         using namespace llvm;
         // Increment the byte at the pointer
         Value* inc_load = builder.CreateLoad(i8, data_ptr, "incLoadTmp");
-        Value* inc = builder.CreateAdd(inc_load, ConstantInt::get(i8, 1), "inc");
+        Value* inc = builder.CreateAdd(inc_load, i8_p1, "inc");
         builder.CreateStore(inc, data_ptr);
     }
 
     void visit(const DecStmt& stmt) {
         using namespace llvm;
         // Increment the byte at the pointer
-        Value* dec_load = builder.CreateLoad(i8, data_ptr, "decLoadTmp");
-        Value* dec = builder.CreateAdd(dec_load, ConstantInt::get(i8, -1), "dec");
+        llvm::Value* dec_load = builder.CreateLoad(i8, data_ptr, "decLoadTmp");
+        llvm::Value* dec = builder.CreateAdd(dec_load, i8_m1, "dec");
         builder.CreateStore(dec, data_ptr);
     }
 
     void visit(const PrintStmt& stmt) {
-        using namespace llvm;
-        Value* val = builder.CreateLoad(i8, data_ptr, "printLoadTmp");
+        llvm::Value* val = builder.CreateLoad(i8, data_ptr, "printLoadTmp");
         
         // must extend the i8 to i32
         Value* extended_val = builder.CreateZExt(val, i8, "extendedPrintLoadTmp");
@@ -92,21 +126,17 @@ public:
     }
 
     void visit(const LoopStmt& stmt) {
-        using namespace llvm;
     }
 
 protected:
-    llvm::LLVMContext context;
+    llvm::LLVMContext context_;
 
     std::unique_ptr<llvm::Module> module_;
-    llvm::BasicBlock* entry;
+    llvm::BasicBlock* entry_;
 
-    llvm::Function* main_func;
-    llvm::FunctionCallee putchar_func_callee;
+    llvm::Function* main_func_;
+    llvm::FunctionCallee putchar_func_callee_;
 
-    llvm::Value* data_ptr; // Pointer to the Brainfuck stack
-    llvm::IRBuilder<> builder;
-
-    llvm::IntegerType* i8;
-    llvm::IntegerType* i32;
+    llvm::Value* data_ptr_; // Pointer to the Brainfuck stack
+    llvm::IRBuilder<> builder_;
 };
