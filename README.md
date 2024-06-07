@@ -24,10 +24,19 @@ Optional arguments:
 Stage Selection Options:
   -S, --asm                   LLVM generation and optimization stages and target-specific code generation, producing an assembly file 
   -c, --compile               The above, plus the assembler, generating a target ".o" object file. 
-  -e, --exe                   The above, plus linking to produce an executable 
+  -e, --exe                   The above, plus linking to produce an executable [default]
 
 Code Generation Options:
   -l, --llvm-ir, --emit-llvm  Emit LLVM IR 
+```
+
+### Simple usage
+```
+bin/bfc -lS -o output.ll input.bf
+sh scripts/make-exe.sh output.ll
+
+chmod +x output
+./output
 ```
 
 ## Compiling
