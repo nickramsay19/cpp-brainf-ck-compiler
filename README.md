@@ -9,7 +9,28 @@ The CLI is designed to be identical to that of `clang` whenever there is overlap
 
 Additionally, for both input and output file arguments, a "-" denotes `stdin` and `stdout` respectively.
 
-## Usage
+### Usage
+Until executable file output is available, one can use the provided script (which uses `llc` and `clang`/`lld`)
+```sh
+bin/bfc -lS -o output.ll input.bf
+sh scripts/make-exe.sh output.ll
+
+chmod +x output
+./output
+```
+
+Alternatively, you can simply output an object file, then use `clang`.
+```sh
+bin/bfc -c -o output.o input.bf
+clang -o output output.o
+```
+
+## Building
+1. Ensure `llvm` headers are installed
+2. Ensure `llvm-config` is installed (it should be if you have `llvm`)
+3. Simply run `make`, compiled project is in `bin/bfc`
+
+## Command Line Options
 ```
 Usage: bfc [--help] [--output VAR] [[--asm]|[--compile]|[--exe]] [--emit-llvm] input
 
@@ -29,20 +50,6 @@ Stage Selection Options:
 Code Generation Options:
   -l, --llvm-ir, --emit-llvm  Emit LLVM IR 
 ```
-
-### Simple usage
-```
-bin/bfc -lS -o output.ll input.bf
-sh scripts/make-exe.sh output.ll
-
-chmod +x output
-./output
-```
-
-## Compiling
-1. Ensure `llvm` headers are installed
-2. Ensure `llvm-config` is installed (it should be if you have `llvm`)
-3. Simply run `make`, compiled project is in `bin/bfc`
 
 ## Roadmap
 - [x] `llvm::Module` *emitter*/code generator via **visitor** design pattern
