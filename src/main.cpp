@@ -7,47 +7,18 @@
 #include <stdexcept>
 #include <variant>
 
-#include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
-
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/Support/FileSystem.h>
-
-#include <llvm/IRReader/IRReader.h>
-#include <llvm/Bitcode/BitcodeWriter.h>
-#include <llvm/IR/DebugInfo.h>
-#include <llvm/Analysis/Passes.h>
-
-#include <llvm/IR/BasicBlock.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetOptions.h>
 
-#include <llvm-c/Analysis.h>
+//#include <llvm-c/Analysis.h>
 #include <llvm/IR/Verifier.h>
-#include <llvm/InitializePasses.h>
-#include <llvm/PassRegistry.h>
 
-#include <llvm/MC/TargetRegistry.h>
-#include <llvm/TargetParser/Host.h>
-
+#include <llvm/Support/TargetSelect.h> // for initialization functions
 #include <llvm/Bitcode/BitcodeWriter.h>
-#include <llvm/Object/ObjectFile.h>
 #include <llvm/Support/CodeGen.h>
 
-#include <llvm/Passes/PassBuilder.h>
-#include <llvm/IR/PassManager.h>
-#include <llvm/Passes/PassPlugin.h>
-
 #include "argparse/argparse.hpp"
-
-#define DEBUG_PRINT 0
 
 #include "parser.hpp"
 #include "ast.hpp"
@@ -148,11 +119,11 @@ int main(int argc, char* argv[]) {
 
     // generate final output
     if (arg_parser.get<bool>("--emit-llvm")) {
-        OStreamToLLVMRawPWriteStreamAdaptor llvm_output (output_ptr);
+        OStreamToLLVMRawPWriteStreamAdaptor llvm_output {output_ptr};
         if (arg_parser.get<bool>("--asm")) {
-            mod.print(llvm_output, nullptr); // write LLVM IR
+            module_.print(llvm_output, nullptr); // write LLVM IR
         } else {
-            llvm::WriteBitcodeToFile(mod, llvm_output); // llvm bitcode format obj files
+            llvm::WriteBitcodeToFile(module_, llvm_output); // llvm bitcode format obj files
         }     
 
         llvm_output.flush();
