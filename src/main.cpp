@@ -41,6 +41,10 @@
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Support/CodeGen.h>
 
+#include <llvm/Passes/PassBuilder.h>
+#include <llvm/IR/PassManager.h>
+#include <llvm/Passes/PassPlugin.h>
+
 #include "argparse/argparse.hpp"
 
 #define DEBUG_PRINT 0
@@ -49,6 +53,7 @@
 #include "ast.hpp"
 #include "generator.hpp"
 #include "ostream_to_llvm_raw_pwrite_stream_adaptor.hpp"
+#include "output.hpp"
 
 template <typename T> requires std::is_same_v<T, std::istream> || std::is_same_v<T, std::ostream>
 int open_fstream_overwrite_ptr(const std::string& file_name, std::unique_ptr<std::fstream>& managed, T** ptr_to_unmanaged, const std::ios_base::openmode& mode) {
@@ -109,7 +114,7 @@ int main(int argc, char* argv[]) {
 
     // allocate a fstream, incase we end up using one
     // place it in a unque_ptr in the current (main) scope, 
-    // thus, unlike std::cin, it must and will be deleted
+    // unlike std::cin, it can and must be freed
     std::unique_ptr<std::fstream> managed_input_ptr;
     if (input_file_name != "-" && open_fstream_overwrite_ptr(input_file_name, managed_input_ptr, &input_ptr, std::ios::in)) {
         std::cerr << "Failed to open file \"" << input_file_name << "\"\n";
@@ -118,17 +123,16 @@ int main(int argc, char* argv[]) {
 
     // parse input code
     Parser parser (*input_ptr); 
-
     std::unique_ptr<Program> program = parser.parse();
-    //std::cout << static_cast<std::string>(*program) << '\n';
+    //std::cerr << static_cast<std::string>(*program) << '\n';
 
     // generate llvm module
     Generator generator;
     program->accept(generator);
-    llvm::Module& mod = generator.get_module();
+    llvm::Module& module_ = generator.get_module();
 
     // verify module
-    if (llvm::verifyModule(mod, &llvm::errs())) {
+    if (llvm::verifyModule(module_, &llvm::errs())) {
         std::cerr << "Generated module has errors";
         return 1;
     }
@@ -154,47 +158,20 @@ int main(int argc, char* argv[]) {
         llvm_output.flush();
     } else {
 
-        OStreamToLLVMRawPWriteStreamAdaptor bin_output (output_ptr);
-
-        // init target and target machine
         llvm::InitializeAllTargetInfos();
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
-        llvm::InitializeAllAsmParsers();
         llvm::InitializeAllAsmPrinters();
 
-        std::string error;
-        auto target_triple = llvm::sys::getDefaultTargetTriple();
-        const auto* target = llvm::TargetRegistry::lookupTarget(target_triple, error);
-
-        llvm::TargetOptions opt;
-        //auto reloc_model = llvm::Optional<llvm::Reloc::Model>();
-        //llvm::cl::Optional<llvm::Reloc::Model> reloc_model;
-        std::optional<llvm::Reloc::Model> reloc_model;
-        auto target_machine = target->createTargetMachine(target_triple, "generic", "", opt, reloc_model);
-
-        // set up module
-        mod.setDataLayout(target_machine->createDataLayout());
-        mod.setTargetTriple(target_triple);
-
-        // optimize 
-        llvm::legacy::PassManager pass;
-        //pass.add(llvm::createFunctionInliningPass());
-        //pass.add(llvm::createConstantPropagationPass());
+        LLVMModuleEmitter emitter(module_, llvm::sys::getDefaultTargetTriple());
 
         if (arg_parser.get<bool>("--asm")) {
-            if (target_machine->addPassesToEmitFile(pass, bin_output, nullptr, llvm::CodeGenFileType::CGFT_AssemblyFile)) {
-                llvm::errs() << "TargetMachine can't emit a file of this type";
-                return 1;
-            }
-            pass.run(mod);
+            emitter.emit(&std::cout, llvm::CodeGenFileType::CGFT_AssemblyFile);
         } else if (arg_parser.get<bool>("--compile")) {
-
+            emitter.emit(&std::cout, llvm::CodeGenFileType::CGFT_ObjectFile);
         } else {
-            
+            std::cout << "TODO\n";
         }
-
-        bin_output.flush();
     }
 
     return 0;
