@@ -62,6 +62,9 @@ chmod +x output
 - [ ] Multiple executable formats besides *ELF*.
 - [ ] Customizable LLVM passes
 - [ ] Customizable target selection
+- [ ] Add LLVM to project build, so LLVM will be built if not available
+- [ ] Debug CLI flags, e.g. enable parse tree result debug output
+- [ ] Make use of environment variables for some flag defaults
 
 
 
