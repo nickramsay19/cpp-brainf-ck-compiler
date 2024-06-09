@@ -2,6 +2,8 @@
 I wish this class didnt need to exist, I really do. But here we are...
 
 Wraps a std::ostream in an interface of llvm::raw_ostream and its subclass llvm::raw_fd_ostream. This gives an object that can be given to LLVM output methods.
+
+I need this since llvm::raw_ostream objects can only be constructed from a filename, thus std::cout isn't an option.
 */
 #pragma once
 
